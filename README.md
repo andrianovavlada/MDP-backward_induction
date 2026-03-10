@@ -2,7 +2,7 @@
 
 # Лабораторная работа: Решение Марковского Процесса Принятия Решений методом обратной индукции
 
-**Ссылка на сайт**: https://andrianovavlada.github.io/MDP-backward_induction/ 
+**Ссылка на выполнение**: https://andrianovavlada.github.io/MDP-backward_induction/ 
 
 ## Что делает программа?
 

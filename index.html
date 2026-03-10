@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>МППР | Решение МДП методом обратной индукции</title>
+    <title>МППР | Решение методом обратной индукции</title>
     <style>
         /* Основные стили */
         body { 
@@ -169,14 +169,14 @@
 <body>
     <div class="container">
         <h1>Методы Статистического Обучения</h1>
-        <p class="subtitle">Решение Марковского Процесса Принятия Решений (МДП) методом обратной индукции</p>
+        <p class="subtitle">Решение Марковского Процесса Принятия Решений (МППР) методом обратной индукции</p>
         
         <div class="info">
-            <strong>📋 Инструкция по выполнению лабораторной работы:</strong><br><br>
+            <strong>Инструкция по выполнению лабораторной работы:</strong><br><br>
             <strong>Шаг 1.</strong> Ожидайте завершения инициализации вычислительной среды (индикатор ниже)<br>
             <strong>Шаг 2.</strong> Загрузите файл входных данных <code>data.json</code><br>
             <strong>Шаг 3.</strong> Инициируйте вычисление кнопкой <strong>«Выполнить расчет»</strong><br>
-            <strong>Шаг 4.</strong> Получите отчет и сохраните результаты
+            <strong>Шаг 4.</strong> Получите решение и сохраните результаты
         </div>
 
         <div class="upload-box">
@@ -188,18 +188,18 @@
         </div>
 
         <div class="loader" id="loader">
-            ⏳ Инициализация Python-среды... (требуется 10-30 секунд)
+            Инициализация Python-среды...
             <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
         </div>
         <div class="error" id="errorBox"></div>
         <div id="output"></div>
         
         <div class="footer">
-            Лабораторный практикум | Кафедра информационных систем | 2026
+             2026
         </div>
     </div>
 
-    <!-- Код Python (исправленный) -->
+    <!-- Код Python -->
     <script type="py" id="py-code">
 import json
 

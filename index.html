@@ -16,6 +16,8 @@
         .loader { display: none; color: #666; text-align: center; margin: 15px 0; }
         .error { color: #f44336; background: #ffebee; padding: 15px; border-radius: 5px; margin: 15px 0; display: none; }
         .info { background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 15px 0; font-size: 14px; }
+        .progress-bar { width: 100%; height: 4px; background: #eee; border-radius: 2px; margin: 10px 0; overflow: hidden; }
+        .progress-fill { height: 100%; background: #4CAF50; width: 0%; transition: width 0.3s; }
     </style>
     <!-- Подключаем Pyodide (Python в браузере) -->
     <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
@@ -40,7 +42,10 @@
             <button class="btn btn-download" onclick="downloadResult()" id="downloadBtn" style="display:none;">📥 Скачать результат</button>
         </div>
 
-        <div class="loader" id="loader">⏳ Загрузка Python-среды... (может занять 5-15 секунд)</div>
+        <div class="loader" id="loader">
+            ⏳ Загрузка Python-среды... (может занять 10-30 секунд)
+            <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+        </div>
         <div class="error" id="errorBox"></div>
         <div id="output"></div>
     </div>
@@ -54,7 +59,8 @@ import json
 # ============================================
 
 def clean_data_keys(data):
-    if not 
+    """Очистка ключей словаря от лишних пробелов для совместимости."""
+    if not data:
         return {}
     cleaned = {}
     for key, value in data.items():
@@ -74,6 +80,7 @@ def clean_data_keys(data):
     return cleaned
 
 def validate_data(data):
+    """Проверка корректности данных МДП."""
     errors = []
     try:
         N = data.get('N')
@@ -193,10 +200,10 @@ class MDPSolver:
                     terms = []
                     for p, r, j in zip(node['P'], node['R'], node['to next S']):
                         v_next = V[j-1] if 1 <= j <= self.N else 0.0
-                        terms.append(f"{p}·({r}+{self.gamma}·{v_next:.2f})")
+                        terms.append(f"{p}*({r}+{self.gamma}*{v_next:.2f})")
                     expr = '+'.join(terms)
                     lines.append(f"  q({state_name}, {action_name}) = {expr} = {q_val:.4f}")
-            lines.append(f"  v({state_name}) = max = {V[s-1]:.4f}, π*({state_name}) = {self.get_action_name(best_action)}")
+            lines.append(f"  v({state_name}) = max = {V[s-1]:.4f}, pi*({state_name}) = {self.get_action_name(best_action)}")
             lines.append("  ")
         return V, policy, lines
 
@@ -231,7 +238,7 @@ class MDPSolver:
             else:
                 result_parts.append(path_parts[i])
                 i += 1
-        return ' → '.join(result_parts) + f" = {path_parts[-1]}"
+        return ' -> '.join(result_parts) + f" = {path_parts[-1]}"
 
     def generate_report(self, V, policy, calc_lines):
         lines = []
@@ -239,7 +246,7 @@ class MDPSolver:
         lines.append("ИСХОДНЫЕ ДАННЫЕ")
         lines.append("=" * 80)
         lines.append(f"Описание задачи: {self.annotation}")
-        lines.append(f"Коэффициент дисконтирования: γ = {self.gamma}")
+        lines.append(f"Коэффициент дисконтирования: gamma = {self.gamma}")
         lines.append(f"Горизонт планирования: K = {self.K}")
         lines.append(f"Количество состояний: N = {self.N}")
         lines.append(f"Количество действий: M = {self.M}")
@@ -266,13 +273,13 @@ class MDPSolver:
             state_name = self.get_state_name(from_s)
             action_name = self.get_action_name(action)
             next_states_names = [self.get_state_name(s) for s in node['to next S']]
-            lines.append(f"  {state_name} + {action_name} → {{{', '.join(next_states_names)}}}")
+            lines.append(f"  {state_name} + {action_name} -> {{{', '.join(next_states_names)}}}")
             for k in range(len(node['P'])):
                 p = node['P'][k]
                 r = node['R'][k]
                 next_s = node['to next S'][k]
                 r_display = int(r) if r == int(r) else r
-                lines.append(f"      {p} | {r_display} → {self.get_state_name(next_s)}")
+                lines.append(f"      {p} | {r_display} -> {self.get_state_name(next_s)}")
         lines.append("  ")
         lines.append("=" * 80)
         lines.append("РЕШЕНИЕ МЕТОДОМ ОБРАТНОЙ ИНДУКЦИИ")
@@ -291,7 +298,7 @@ class MDPSolver:
             value = V[i]
             lines.append(f"{state_name:<20} {action_name:<20} {value:<15.4f}")
         lines.append("-" * 60)
-        lines.append(f"Значение ожидаемой ценности: V*(s₁) = {V[0]:.4f}")
+        lines.append(f"Значение ожидаемой ценности: V*(s1) = {V[0]:.4f}")
         lines.append("=" * 80)
         return '\n'.join(lines)
 
@@ -306,7 +313,7 @@ def run_calculation(file_content):
         data = clean_data_keys(raw_data)
         is_valid, errors = validate_data(data)
         if not is_valid:
-            return "❌ ОШИБКА В ДАННЫХ:\n" + "\n".join([f"  - {e}" for e in errors])
+            return "ОШИБКА В ДАННЫХ:\n" + "\n".join([f"  - {e}" for e in errors])
         solver = MDPSolver(data)
         V, policy, calc_lines = solver.solve_backward_induction()
         report = solver.generate_report(V, policy, calc_lines)
@@ -314,7 +321,7 @@ def run_calculation(file_content):
         return report
     except Exception as e:
         import traceback
-        return f"❌ КРИТИЧЕСКАЯ ОШИБКА:\n{str(e)}\n\n{traceback.format_exc()}"
+        return f"КРИТИЧЕСКАЯ ОШИБКА:\n{str(e)}\n\n{traceback.format_exc()}"
 
 def get_last_report():
     return last_report
@@ -324,19 +331,45 @@ def get_last_report():
         let pyodide = null;
         let pyodideReady = false;
         let resultBlob = null;
+        let loadProgress = 0;
+
+        // Прогресс-бар для загрузки
+        function updateProgress(percent) {
+            document.getElementById('progress').style.width = percent + '%';
+        }
 
         // Инициализация Python
         async function main() {
+            const loader = document.getElementById('loader');
+            const progress = document.getElementById('progress');
+            
             try {
-                pyodide = await loadPyodide();
+                loader.style.display = 'block';
+                updateProgress(10);
+                
+                pyodide = await loadPyodide({
+                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.23.4/full/"
+                });
+                
+                updateProgress(40);
                 await pyodide.loadPackage("micropip");
+                
+                updateProgress(70);
                 await pyodide.runPythonAsync(document.getElementById("py-code").innerHTML);
+                
+                updateProgress(100);
                 pyodideReady = true;
                 document.getElementById('calcBtn').disabled = false;
-                document.getElementById('loader').style.display = 'none';
-                console.log("✅ Python готов к работе");
+                
+                setTimeout(() => {
+                    loader.style.display = 'none';
+                }, 500);
+                
+                console.log("Python готов к работе");
             } catch (err) {
-                document.getElementById('loader').innerHTML = "❌ Ошибка загрузки Python. Обновите страницу.";
+                loader.innerHTML = "Ошибка загрузки Python. <a href='' onclick='location.reload()'>Обновите страницу</a>.";
+                document.getElementById('errorBox').style.display = 'block';
+                document.getElementById('errorBox').innerText = "Детали: " + err.message;
                 console.error(err);
             }
         }
@@ -350,37 +383,36 @@ def get_last_report():
             }
             const fileInput = document.getElementById('fileInput');
             if (fileInput.files.length === 0) { 
-                alert("❌ Выберите файл data.json!"); 
+                alert("Выберите файл data.json!"); 
                 return; 
             }
             
-            document.getElementById('loader').style.display = 'block';
-            document.getElementById('loader').innerText = "⏳ Выполнение расчета...";
+            const loader = document.getElementById('loader');
+            loader.style.display = 'block';
+            loader.innerText = "Выполнение расчета...";
             document.getElementById('errorBox').style.display = 'none';
+            document.getElementById('output').style.display = 'none';
             
             try {
                 const file = fileInput.files[0];
                 const text = await file.text();
                 
-                // Вызов Python функции
                 let result = await pyodide.globals.get("run_calculation")(text);
                 
                 const outputDiv = document.getElementById('output');
                 outputDiv.style.display = 'block';
                 outputDiv.innerText = result;
                 
-                // Подготовка к скачиванию
-                if (!result.startsWith("❌")) {
+                if (!result.startsWith("ОШИБКА") && !result.startsWith("КРИТИЧЕСКАЯ")) {
                     resultBlob = new Blob([result], {type: 'text/plain'});
                     document.getElementById('downloadBtn').style.display = 'inline-block';
                 }
                 
-                document.getElementById('loader').innerText = "⏳ Загрузка Python-среды... (может занять 5-15 секунд)";
             } catch (err) {
                 document.getElementById('errorBox').style.display = 'block';
-                document.getElementById('errorBox').innerText = "❌ Ошибка: " + err.message;
+                document.getElementById('errorBox').innerText = "Ошибка: " + err.message;
             }
-            document.getElementById('loader').style.display = 'none';
+            loader.style.display = 'none';
         }
 
         // Скачивание результата

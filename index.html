@@ -3,60 +3,205 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Лабораторная работа: МДП</title>
+    <title>МППР | Решение МДП методом обратной индукции</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
-        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { color: #333; text-align: center; }
-        .upload-box { border: 2px dashed #4CAF50; padding: 30px; text-align: center; margin: 20px 0; border-radius: 5px; background: #f9f9f9; }
-        .btn { background: #4CAF50; color: white; padding: 12px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin: 10px; }
-        .btn:disabled { background: #ccc; cursor: not-allowed; }
-        .btn-download { background: #2196F3; }
-        #output { white-space: pre-wrap; background: #2d2d2d; color: #f8f8f2; padding: 20px; border-radius: 5px; overflow-x: auto; font-family: 'Consolas', monospace; font-size: 13px; display: none; margin-top: 20px; }
-        .loader { display: none; color: #666; text-align: center; margin: 15px 0; }
-        .error { color: #f44336; background: #ffebee; padding: 15px; border-radius: 5px; margin: 15px 0; display: none; }
-        .info { background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 15px 0; font-size: 14px; }
-        .progress-bar { width: 100%; height: 4px; background: #eee; border-radius: 2px; margin: 10px 0; overflow: hidden; }
-        .progress-fill { height: 100%; background: #4CAF50; width: 0%; transition: width 0.3s; }
+        /* Основные стили */
+        body { 
+            font-family: 'Times New Roman', Times, serif; 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            padding: 30px; 
+            background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
+            min-height: 100vh;
+            color: #1a1a1a;
+        }
+        
+        .container { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            border-top: 4px solid #1976D2;
+        }
+        
+        /* Заголовки */
+        h1 { 
+            color: #0D47A1; 
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #546E7A;
+            font-style: italic;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        /* Информационный блок */
+        .info { 
+            background: #E3F2FD; 
+            padding: 20px; 
+            border-radius: 4px; 
+            margin: 20px 0; 
+            font-size: 14px;
+            border-left: 4px solid #1976D2;
+        }
+        
+        .info strong { color: #0D47A1; }
+        
+        /* Блок загрузки */
+        .upload-box { 
+            border: 2px dashed #1976D2; 
+            padding: 30px; 
+            text-align: center; 
+            margin: 25px 0; 
+            border-radius: 4px; 
+            background: #FAFAFA;
+        }
+        
+        /* Кнопки */
+        .btn { 
+            background: #1976D2; 
+            color: white; 
+            padding: 12px 35px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 15px; 
+            margin: 10px;
+            transition: all 0.3s;
+            font-family: 'Times New Roman', Times, serif;
+        }
+        
+        .btn:hover:not(:disabled) { 
+            background: #1565C0;
+            box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+        }
+        
+        .btn:disabled { 
+            background: #B0BEC5; 
+            cursor: not-allowed;
+        }
+        
+        .btn-download { 
+            background: #388E3C;
+        }
+        
+        .btn-download:hover {
+            background: #2E7D32;
+        }
+        
+        /* Вывод результатов */
+        #output { 
+            white-space: pre-wrap; 
+            background: #263238; 
+            color: #ECEFF1; 
+            padding: 25px; 
+            border-radius: 4px; 
+            overflow-x: auto; 
+            font-family: 'Consolas', 'Courier New', monospace; 
+            font-size: 13px; 
+            display: none; 
+            margin-top: 25px;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        /* Индикатор загрузки */
+        .loader { 
+            display: none; 
+            color: #546E7A; 
+            text-align: center; 
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        
+        .progress-bar { 
+            width: 100%; 
+            height: 6px; 
+            background: #CFD8DC; 
+            border-radius: 3px; 
+            margin: 12px 0; 
+            overflow: hidden;
+        }
+        
+        .progress-fill { 
+            height: 100%; 
+            background: linear-gradient(90deg, #1976D2, #42A5F5); 
+            width: 0%; 
+            transition: width 0.5s;
+        }
+        
+        /* Ошибки */
+        .error { 
+            color: #C62828; 
+            background: #FFEBEE; 
+            padding: 15px; 
+            border-radius: 4px; 
+            margin: 15px 0; 
+            display: none;
+            border-left: 4px solid #C62828;
+        }
+        
+        /* Подвал */
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #CFD8DC;
+            font-size: 12px;
+            color: #78909C;
+        }
+        
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            body { padding: 15px; }
+            .container { padding: 25px; }
+            h1 { font-size: 20px; }
+        }
     </style>
-    <!-- Подключаем Pyodide (Python в браузере) -->
     <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>🎓 Лабораторная работа: МДП</h1>
-        <p style="text-align: center;">Решение Марковского Процесса Принятия Решений методом обратной индукции</p>
+        <h1>Методы Статистического Обучения</h1>
+        <p class="subtitle">Решение Марковского Процесса Принятия Решений (МДП) методом обратной индукции</p>
         
         <div class="info">
-            <strong>📋 Инструкция:</strong><br>
-            1. Загрузите файл <code>data.json</code><br>
-            2. Подождите загрузки Python (индикатор внизу)<br>
-            3. Нажмите <strong>«Выполнить расчет»</strong><br>
-            4. Скачайте результат или скопируйте из окна вывода
+            <strong>📋 Инструкция по выполнению лабораторной работы:</strong><br><br>
+            <strong>Шаг 1.</strong> Ожидайте завершения инициализации вычислительной среды (индикатор ниже)<br>
+            <strong>Шаг 2.</strong> Загрузите файл входных данных <code>data.json</code><br>
+            <strong>Шаг 3.</strong> Инициируйте вычисление кнопкой <strong>«Выполнить расчет»</strong><br>
+            <strong>Шаг 4.</strong> Получите отчет и сохраните результаты
         </div>
 
         <div class="upload-box">
-            <input type="file" id="fileInput" accept=".json" style="font-size: 16px;">
+            <label for="fileInput" style="display:block; margin-bottom:15px; color:#546E7A;">Файл входных данных (JSON):</label>
+            <input type="file" id="fileInput" accept=".json" style="font-size: 15px;">
             <br><br>
             <button class="btn" onclick="runCalculation()" id="calcBtn" disabled>▶ Выполнить расчет</button>
             <button class="btn btn-download" onclick="downloadResult()" id="downloadBtn" style="display:none;">📥 Скачать результат</button>
         </div>
 
         <div class="loader" id="loader">
-            ⏳ Загрузка Python-среды... (может занять 10-30 секунд)
+            ⏳ Инициализация Python-среды... (требуется 10-30 секунд)
             <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
         </div>
         <div class="error" id="errorBox"></div>
         <div id="output"></div>
+        
+        <div class="footer">
+            Лабораторный практикум | Кафедра информационных систем | 2026
+        </div>
     </div>
 
-    <!-- Код Python -->
+    <!-- Код Python (исправленный) -->
     <script type="py" id="py-code">
 import json
-
-# ============================================
-# ВАШ КОД ИЗ lr.py (АДАПТИРОВАН ДЛЯ БРАУЗЕРА)
-# ============================================
 
 def clean_data_keys(data):
     """Очистка ключей словаря от лишних пробелов для совместимости."""
@@ -200,10 +345,10 @@ class MDPSolver:
                     terms = []
                     for p, r, j in zip(node['P'], node['R'], node['to next S']):
                         v_next = V[j-1] if 1 <= j <= self.N else 0.0
-                        terms.append(f"{p}*({r}+{self.gamma}*{v_next:.2f})")
+                        terms.append(f"{p}·({r}+{self.gamma}·{v_next:.2f})")
                     expr = '+'.join(terms)
                     lines.append(f"  q({state_name}, {action_name}) = {expr} = {q_val:.4f}")
-            lines.append(f"  v({state_name}) = max = {V[s-1]:.4f}, pi*({state_name}) = {self.get_action_name(best_action)}")
+            lines.append(f"  v({state_name}) = max = {V[s-1]:.4f}, π*({state_name}) = {self.get_action_name(best_action)}")
             lines.append("  ")
         return V, policy, lines
 
@@ -238,7 +383,7 @@ class MDPSolver:
             else:
                 result_parts.append(path_parts[i])
                 i += 1
-        return ' -> '.join(result_parts) + f" = {path_parts[-1]}"
+        return ' → '.join(result_parts) + f" = {path_parts[-1]}"
 
     def generate_report(self, V, policy, calc_lines):
         lines = []
@@ -246,7 +391,7 @@ class MDPSolver:
         lines.append("ИСХОДНЫЕ ДАННЫЕ")
         lines.append("=" * 80)
         lines.append(f"Описание задачи: {self.annotation}")
-        lines.append(f"Коэффициент дисконтирования: gamma = {self.gamma}")
+        lines.append(f"Коэффициент дисконтирования: γ = {self.gamma}")
         lines.append(f"Горизонт планирования: K = {self.K}")
         lines.append(f"Количество состояний: N = {self.N}")
         lines.append(f"Количество действий: M = {self.M}")
@@ -273,13 +418,13 @@ class MDPSolver:
             state_name = self.get_state_name(from_s)
             action_name = self.get_action_name(action)
             next_states_names = [self.get_state_name(s) for s in node['to next S']]
-            lines.append(f"  {state_name} + {action_name} -> {{{', '.join(next_states_names)}}}")
+            lines.append(f"  {state_name} + {action_name} → {{{', '.join(next_states_names)}}}")
             for k in range(len(node['P'])):
                 p = node['P'][k]
                 r = node['R'][k]
                 next_s = node['to next S'][k]
                 r_display = int(r) if r == int(r) else r
-                lines.append(f"      {p} | {r_display} -> {self.get_state_name(next_s)}")
+                lines.append(f"      {p} | {r_display} → {self.get_state_name(next_s)}")
         lines.append("  ")
         lines.append("=" * 80)
         lines.append("РЕШЕНИЕ МЕТОДОМ ОБРАТНОЙ ИНДУКЦИИ")
@@ -298,11 +443,10 @@ class MDPSolver:
             value = V[i]
             lines.append(f"{state_name:<20} {action_name:<20} {value:<15.4f}")
         lines.append("-" * 60)
-        lines.append(f"Значение ожидаемой ценности: V*(s1) = {V[0]:.4f}")
+        lines.append(f"Значение ожидаемой ценности: V*(s₁) = {V[0]:.4f}")
         lines.append("=" * 80)
         return '\n'.join(lines)
 
-# Глобальные переменные для хранения результата
 last_report = ""
 last_filename = "result.txt"
 
@@ -313,7 +457,7 @@ def run_calculation(file_content):
         data = clean_data_keys(raw_data)
         is_valid, errors = validate_data(data)
         if not is_valid:
-            return "ОШИБКА В ДАННЫХ:\n" + "\n".join([f"  - {e}" for e in errors])
+            return "❌ ОШИБКА В ДАННЫХ:\n" + "\n".join([f"  - {e}" for e in errors])
         solver = MDPSolver(data)
         V, policy, calc_lines = solver.solve_backward_induction()
         report = solver.generate_report(V, policy, calc_lines)
@@ -321,7 +465,7 @@ def run_calculation(file_content):
         return report
     except Exception as e:
         import traceback
-        return f"КРИТИЧЕСКАЯ ОШИБКА:\n{str(e)}\n\n{traceback.format_exc()}"
+        return f"❌ КРИТИЧЕСКАЯ ОШИБКА:\n{str(e)}\n\n{traceback.format_exc()}"
 
 def get_last_report():
     return last_report
@@ -331,14 +475,11 @@ def get_last_report():
         let pyodide = null;
         let pyodideReady = false;
         let resultBlob = null;
-        let loadProgress = 0;
 
-        // Прогресс-бар для загрузки
         function updateProgress(percent) {
             document.getElementById('progress').style.width = percent + '%';
         }
 
-        // Инициализация Python
         async function main() {
             const loader = document.getElementById('loader');
             const progress = document.getElementById('progress');
@@ -365,9 +506,9 @@ def get_last_report():
                     loader.style.display = 'none';
                 }, 500);
                 
-                console.log("Python готов к работе");
+                console.log("✅ Python готов к работе");
             } catch (err) {
-                loader.innerHTML = "Ошибка загрузки Python. <a href='' onclick='location.reload()'>Обновите страницу</a>.";
+                loader.innerHTML = "❌ Ошибка загрузки Python. <a href='' onclick='location.reload()'>Обновите страницу</a>.";
                 document.getElementById('errorBox').style.display = 'block';
                 document.getElementById('errorBox').innerText = "Детали: " + err.message;
                 console.error(err);
@@ -375,21 +516,20 @@ def get_last_report():
         }
         main();
 
-        // Запуск расчета
         async function runCalculation() {
             if (!pyodideReady) { 
-                alert("Python еще загружается, подождите..."); 
+                alert("Python ещё загружается, подождите..."); 
                 return; 
             }
             const fileInput = document.getElementById('fileInput');
             if (fileInput.files.length === 0) { 
-                alert("Выберите файл data.json!"); 
+                alert("❌ Выберите файл data.json!"); 
                 return; 
             }
             
             const loader = document.getElementById('loader');
             loader.style.display = 'block';
-            loader.innerText = "Выполнение расчета...";
+            loader.innerText = "⏳ Выполнение расчета...";
             document.getElementById('errorBox').style.display = 'none';
             document.getElementById('output').style.display = 'none';
             
@@ -403,19 +543,18 @@ def get_last_report():
                 outputDiv.style.display = 'block';
                 outputDiv.innerText = result;
                 
-                if (!result.startsWith("ОШИБКА") && !result.startsWith("КРИТИЧЕСКАЯ")) {
+                if (!result.startsWith("❌")) {
                     resultBlob = new Blob([result], {type: 'text/plain'});
                     document.getElementById('downloadBtn').style.display = 'inline-block';
                 }
                 
             } catch (err) {
                 document.getElementById('errorBox').style.display = 'block';
-                document.getElementById('errorBox').innerText = "Ошибка: " + err.message;
+                document.getElementById('errorBox').innerText = "❌ Ошибка: " + err.message;
             }
             loader.style.display = 'none';
         }
 
-        // Скачивание результата
         function downloadResult() {
             if (!resultBlob) return;
             const a = document.createElement('a');

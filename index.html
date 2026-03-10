@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Лабораторная работа: МДП</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; }
+        .upload-box { border: 2px dashed #4CAF50; padding: 30px; text-align: center; margin: 20px 0; border-radius: 5px; background: #f9f9f9; }
+        .btn { background: #4CAF50; color: white; padding: 12px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin: 10px; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-download { background: #2196F3; }
+        #output { white-space: pre-wrap; background: #2d2d2d; color: #f8f8f2; padding: 20px; border-radius: 5px; overflow-x: auto; font-family: 'Consolas', monospace; font-size: 13px; display: none; margin-top: 20px; }
+        .loader { display: none; color: #666; text-align: center; margin: 15px 0; }
+        .error { color: #f44336; background: #ffebee; padding: 15px; border-radius: 5px; margin: 15px 0; display: none; }
+        .info { background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 15px 0; font-size: 14px; }
+    </style>
+    <!-- Подключаем Pyodide (Python в браузере) -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🎓 Лабораторная работа: МДП</h1>
+        <p style="text-align: center;">Решение Марковского Процесса Принятия Решений методом обратной индукции</p>
+        
+        <div class="info">
+            <strong>📋 Инструкция:</strong><br>
+            1. Подождите загрузки Python (индикатор внизу)<br>
+            2. Загрузите файл <code>data.json</code><br>
+            3. Нажмите <strong>«Выполнить расчет»</strong><br>
+            4. Скачайте результат или скопируйте из окна вывода
+        </div>
+
+        <div class="upload-box">
+            <input type="file" id="fileInput" accept=".json" style="font-size: 16px;">
+            <br><br>
+            <button class="btn" onclick="runCalculation()" id="calcBtn" disabled>▶ Выполнить расчет</button>
+            <button class="btn btn-download" onclick="downloadResult()" id="downloadBtn" style="display:none;">📥 Скачать результат</button>
+        </div>
+
+        <div class="loader" id="loader">⏳ Загрузка Python-среды... (может занять 5-15 секунд)</div>
+        <div class="error" id="errorBox"></div>
+        <div id="output"></div>
+    </div>
+
+    <!-- Код Python -->
+    <script type="py" id="py-code">
+import json
+
+# ============================================
+# ВАШ КОД ИЗ lr.py (АДАПТИРОВАН ДЛЯ БРАУЗЕРА)
+# ============================================
+
+def clean_data_keys(data):
+    if not 
+        return {}
+    cleaned = {}
+    for key, value in data.items():
+        clean_key = key.strip()
+        if isinstance(value, dict):
+            cleaned[clean_key] = clean_data_keys(value)
+        elif isinstance(value, list):
+            cleaned_list = []
+            for item in value:
+                if isinstance(item, dict):
+                    cleaned_list.append(clean_data_keys(item))
+                else:
+                    cleaned_list.append(item)
+            cleaned[clean_key] = cleaned_list
+        else:
+            cleaned[clean_key] = value
+    return cleaned
+
+def validate_data(data):
+    errors = []
+    try:
+        N = data.get('N')
+        M = data.get('M')
+        if N is None or M is None:
+            return False, ["Отсутствуют обязательные поля N или M."]
+        if N <= 0 or M <= 0:
+            errors.append("N и M должны быть положительными числами.")
+        if len(data.get('states', [])) != N:
+            errors.append(f"Количество состояний ({len(data.get('states', []))}) не совпадает с N ({N}).")
+        if len(data.get('actions', [])) != M:
+            errors.append(f"Количество действий ({len(data.get('actions', []))}) не совпадает с M ({M}).")
+        if len(data.get('D', [])) != N:
+            errors.append(f"Количество строк в матрице D ({len(data.get('D', []))}) не совпадает с N.")
+        for i, row in enumerate(data.get('D', [])):
+            if len(row) != M:
+                errors.append(f"Длина строки {i+1} матрицы D не равна M.")
+        nodes_map = {}
+        for node in data.get('chance_nodes', []):
+            from_s = node.get('from S')
+            action = node.get('action')
+            if from_s is None or action is None:
+                errors.append(f"Узел без указания состояния или действия: {node}")
+                continue
+            key = (from_s, action)
+            if key in nodes_map:
+                errors.append(f"Дублирование узла для состояния {key[0]} и действия {key[1]}.")
+            nodes_map[key] = node
+            probs = node.get('P', [])
+            if abs(sum(probs) - 1.0) > 0.001:
+                errors.append(f"Сумма вероятностей для узла ({from_s}, {action}) не равна 1 (={sum(probs)}).")
+            for j in node.get('to next S', []):
+                if j < 1 or j > N:
+                    errors.append(f"Некорректный индекс состояния {j} в узле ({from_s}, {action}).")
+        if errors:
+            return False, errors
+        return True, []
+    except KeyError as e:
+        return False, [f"Отсутствует обязательное поле: {e}"]
+    except Exception as e:
+        return False, [f"Ошибка валидации: {str(e)}"]
+
+class MDPSolver:
+    def __init__(self, data):
+        self.data = data
+        self.N = data['N']
+        self.M = data['M']
+        self.states = data['states']
+        self.actions = data['actions']
+        self.D = data['D']
+        self.nodes = {}
+        for n in data['chance_nodes']:
+            self.nodes[(n['from S'], n['action'])] = n
+        self.gamma = data.get('gamma', 1.0)
+        self.K = data.get('K', self.N - 1)
+        self.annotation = data.get('annotation', 'Задача МДП')
+        self.terminal_states = [i+1 for i in range(self.N) if all(a == 0 for a in self.D[i])]
+
+    def is_terminal(self, s):
+        return s in self.terminal_states
+
+    def get_available_actions(self, s):
+        return [a+1 for a in range(self.M) if self.D[s-1][a] == 1]
+
+    def get_action_name(self, a):
+        if 1 <= a <= len(self.actions):
+            return self.actions[a-1]
+        return f"a{a}"
+
+    def get_state_name(self, s):
+        if 1 <= s <= len(self.states):
+            return self.states[s-1]
+        return f"s{s}"
+
+    def Q(self, s, a, V):
+        node = self.nodes.get((s, a))
+        if not node:
+            return float('-inf')
+        q_val = 0.0
+        probs = node.get('P', [])
+        rewards = node.get('R', [])
+        next_states = node.get('to next S', [])
+        for p, r, j in zip(probs, rewards, next_states):
+            v_next = V[j-1] if 1 <= j <= self.N else 0.0
+            q_val += p * (r + self.gamma * v_next)
+        return q_val
+
+    def solve_backward_induction(self):
+        V = [0.0] * self.N
+        policy = [''] * self.N
+        lines = []
+        lines.append("  ")
+        lines.append("Шаг 0. Терминальные состояния")
+        for s in self.terminal_states:
+            lines.append(f"  v({self.get_state_name(s)}) = 0")
+        lines.append("  ")
+        non_terminal_states = [s for s in range(1, self.N + 1) if not self.is_terminal(s)]
+        for step, s in enumerate(reversed(non_terminal_states), 1):
+            actions = self.get_available_actions(s)
+            if not actions:
+                continue
+            q_values = {}
+            for a in actions:
+                q_val = self.Q(s, a, V)
+                q_values[a] = q_val
+            if not q_values:
+                continue
+            best_action = max(q_values, key=q_values.get)
+            V[s-1] = q_values[best_action]
+            policy[s-1] = best_action
+            state_name = self.get_state_name(s)
+            lines.append(f"Шаг {step}. Состояние {state_name}")
+            for a, q_val in q_values.items():
+                action_name = self.get_action_name(a)
+                node = self.nodes.get((s, a))
+                if node:
+                    terms = []
+                    for p, r, j in zip(node['P'], node['R'], node['to next S']):
+                        v_next = V[j-1] if 1 <= j <= self.N else 0.0
+                        terms.append(f"{p}·({r}+{self.gamma}·{v_next:.2f})")
+                    expr = '+'.join(terms)
+                    lines.append(f"  q({state_name}, {action_name}) = {expr} = {q_val:.4f}")
+            lines.append(f"  v({state_name}) = max = {V[s-1]:.4f}, π*({state_name}) = {self.get_action_name(best_action)}")
+            lines.append("  ")
+        return V, policy, lines
+
+    def get_optimal_policy_path(self, V, policy):
+        path_parts = []
+        current_s = 1
+        visited = set()
+        while not self.is_terminal(current_s) and current_s not in visited:
+            visited.add(current_s)
+            path_parts.append(f"{self.get_state_name(current_s)}")
+            action_num = policy[current_s-1]
+            if not action_num:
+                break
+            action_name = self.get_action_name(action_num)
+            path_parts.append(action_name)
+            node = self.nodes.get((current_s, action_num))
+            if node:
+                max_idx = node['P'].index(max(node['P']))
+                current_s = node['to next S'][max_idx]
+            else:
+                break
+        if not self.is_terminal(current_s) and current_s not in visited:
+            path_parts.append(self.get_state_name(current_s))
+        else:
+            path_parts.append(self.get_state_name(current_s))
+        result_parts = []
+        i = 0
+        while i < len(path_parts) - 1:
+            if i + 1 < len(path_parts):
+                result_parts.append(f"{path_parts[i]} + {path_parts[i+1]}")
+                i += 2
+            else:
+                result_parts.append(path_parts[i])
+                i += 1
+        return ' → '.join(result_parts) + f" = {path_parts[-1]}"
+
+    def generate_report(self, V, policy, calc_lines):
+        lines = []
+        lines.append("=" * 80)
+        lines.append("ИСХОДНЫЕ ДАННЫЕ")
+        lines.append("=" * 80)
+        lines.append(f"Описание задачи: {self.annotation}")
+        lines.append(f"Коэффициент дисконтирования: γ = {self.gamma}")
+        lines.append(f"Горизонт планирования: K = {self.K}")
+        lines.append(f"Количество состояний: N = {self.N}")
+        lines.append(f"Количество действий: M = {self.M}")
+        lines.append("  ")
+        states_str = ",  ".join([f"{i+1} - {self.states[i]}" for i in range(self.N)])
+        lines.append(f"Состояния: {states_str}")
+        terminal_names = [f"{s} - {self.get_state_name(s)}" for s in self.terminal_states]
+        lines.append(f"Терминальные состояния: {', '.join(terminal_names)}")
+        lines.append("  ")
+        actions_str = ",  ".join([f"{i+1} - {self.actions[i].capitalize()}" for i in range(self.M)])
+        lines.append(f"Действия: {actions_str}")
+        lines.append("  ")
+        lines.append("Матрица доступности действий:")
+        for i in range(self.N):
+            state_name = self.get_state_name(i+1)
+            available = [str(j+1) for j, val in enumerate(self.D[i]) if val == 1]
+            actions_str_row = ', '.join(available) if available else '—'
+            lines.append(f"  {state_name}: [{actions_str_row}]")
+        lines.append("  ")
+        lines.append("Узлы переходов:")
+        for node in self.nodes.values():
+            from_s = node['from S']
+            action = node['action']
+            state_name = self.get_state_name(from_s)
+            action_name = self.get_action_name(action)
+            next_states_names = [self.get_state_name(s) for s in node['to next S']]
+            lines.append(f"  {state_name} + {action_name} → {{{', '.join(next_states_names)}}}")
+            for k in range(len(node['P'])):
+                p = node['P'][k]
+                r = node['R'][k]
+                next_s = node['to next S'][k]
+                r_display = int(r) if r == int(r) else r
+                lines.append(f"      {p} | {r_display} → {self.get_state_name(next_s)}")
+        lines.append("  ")
+        lines.append("=" * 80)
+        lines.append("РЕШЕНИЕ МЕТОДОМ ОБРАТНОЙ ИНДУКЦИИ")
+        lines.append("=" * 80)
+        lines.extend(calc_lines)
+        lines.append("=" * 80)
+        lines.append("ОПТИМАЛЬНАЯ ПОЛИТИКА")
+        lines.append("=" * 80)
+        lines.append("-" * 60)
+        lines.append(f"{'Состояние':<20} {'Действие':<20} {'Ценность':<15}")
+        lines.append("-" * 60)
+        for i in range(self.N):
+            s = i + 1
+            state_name = self.get_state_name(s)
+            action_name = self.get_action_name(policy[i]) if policy[i] else "—"
+            value = V[i]
+            lines.append(f"{state_name:<20} {action_name:<20} {value:<15.4f}")
+        lines.append("-" * 60)
+        lines.append(f"Значение ожидаемой ценности: V*(s₁) = {V[0]:.4f}")
+        lines.append("=" * 80)
+        return '\n'.join(lines)
+
+# Глобальные переменные для хранения результата
+last_report = ""
+last_filename = "result.txt"
+
+def run_calculation(file_content):
+    global last_report, last_filename
+    try:
+        raw_data = json.loads(file_content)
+        data = clean_data_keys(raw_data)
+        is_valid, errors = validate_data(data)
+        if not is_valid:
+            return "❌ ОШИБКА В ДАННЫХ:\n" + "\n".join([f"  - {e}" for e in errors])
+        solver = MDPSolver(data)
+        V, policy, calc_lines = solver.solve_backward_induction()
+        report = solver.generate_report(V, policy, calc_lines)
+        last_report = report
+        return report
+    except Exception as e:
+        import traceback
+        return f"❌ КРИТИЧЕСКАЯ ОШИБКА:\n{str(e)}\n\n{traceback.format_exc()}"
+
+def get_last_report():
+    return last_report
+    </script>
+
+    <script>
+        let pyodide = null;
+        let pyodideReady = false;
+        let resultBlob = null;
+
+        // Инициализация Python
+        async function main() {
+            try {
+                pyodide = await loadPyodide();
+                await pyodide.loadPackage("micropip");
+                await pyodide.runPythonAsync(document.getElementById("py-code").innerHTML);
+                pyodideReady = true;
+                document.getElementById('calcBtn').disabled = false;
+                document.getElementById('loader').style.display = 'none';
+                console.log("✅ Python готов к работе");
+            } catch (err) {
+                document.getElementById('loader').innerHTML = "❌ Ошибка загрузки Python. Обновите страницу.";
+                console.error(err);
+            }
+        }
+        main();
+
+        // Запуск расчета
+        async function runCalculation() {
+            if (!pyodideReady) { 
+                alert("Python еще загружается, подождите..."); 
+                return; 
+            }
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput.files.length === 0) { 
+                alert("❌ Выберите файл data.json!"); 
+                return; 
+            }
+            
+            document.getElementById('loader').style.display = 'block';
+            document.getElementById('loader').innerText = "⏳ Выполнение расчета...";
+            document.getElementById('errorBox').style.display = 'none';
+            
+            try {
+                const file = fileInput.files[0];
+                const text = await file.text();
+                
+                // Вызов Python функции
+                let result = await pyodide.globals.get("run_calculation")(text);
+                
+                const outputDiv = document.getElementById('output');
+                outputDiv.style.display = 'block';
+                outputDiv.innerText = result;
+                
+                // Подготовка к скачиванию
+                if (!result.startsWith("❌")) {
+                    resultBlob = new Blob([result], {type: 'text/plain'});
+                    document.getElementById('downloadBtn').style.display = 'inline-block';
+                }
+                
+                document.getElementById('loader').innerText = "⏳ Загрузка Python-среды... (может занять 5-15 секунд)";
+            } catch (err) {
+                document.getElementById('errorBox').style.display = 'block';
+                document.getElementById('errorBox').innerText = "❌ Ошибка: " + err.message;
+            }
+            document.getElementById('loader').style.display = 'none';
+        }
+
+        // Скачивание результата
+        function downloadResult() {
+            if (!resultBlob) return;
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(resultBlob);
+            a.download = 'result_mdp.txt';
+            a.click();
+        }
+    </script>
+</body>
+</html>

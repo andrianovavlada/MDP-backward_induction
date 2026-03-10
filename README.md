@@ -2,7 +2,7 @@
 
 # Лабораторная работа: Решение МДП методом обратной индукции
 
-**Ссылка на сайт**: `[https://ваш-ник.github.io/репозиторий/](https://andrianovavlada.github.io/MDP-backward_induction/)`
+**Ссылка на сайт**: `https://andrianovavlada.github.io/MDP-backward_induction/`
 
 ## Что делает программа?
 

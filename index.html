@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>МППР | Решение методом обратной индукции</title>
     <style>
-        /* Основные стили */
         body { 
             font-family: 'Times New Roman', Times, serif; 
             max-width: 1000px; 
@@ -15,7 +14,6 @@
             min-height: 100vh;
             color: #1a1a1a;
         }
-        
         .container { 
             background: white; 
             padding: 40px; 
@@ -23,8 +21,6 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
             border-top: 4px solid #1976D2;
         }
-        
-        /* Заголовки */
         h1 { 
             color: #0D47A1; 
             text-align: center;
@@ -33,7 +29,6 @@
             text-transform: uppercase;
             letter-spacing: 1px;
         }
-        
         .subtitle {
             text-align: center;
             color: #546E7A;
@@ -41,8 +36,6 @@
             margin-bottom: 30px;
             font-size: 14px;
         }
-        
-        /* Информационный блок */
         .info { 
             background: #E3F2FD; 
             padding: 20px; 
@@ -51,10 +44,7 @@
             font-size: 14px;
             border-left: 4px solid #1976D2;
         }
-        
         .info strong { color: #0D47A1; }
-        
-        /* Блок загрузки */
         .upload-box { 
             border: 2px dashed #1976D2; 
             padding: 30px; 
@@ -63,8 +53,6 @@
             border-radius: 4px; 
             background: #FAFAFA;
         }
-        
-        /* Кнопки */
         .btn { 
             background: #1976D2; 
             color: white; 
@@ -77,26 +65,20 @@
             transition: all 0.3s;
             font-family: 'Times New Roman', Times, serif;
         }
-        
         .btn:hover:not(:disabled) { 
             background: #1565C0;
             box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
         }
-        
         .btn:disabled { 
             background: #B0BEC5; 
             cursor: not-allowed;
         }
-        
         .btn-download { 
             background: #388E3C;
         }
-        
         .btn-download:hover {
             background: #2E7D32;
         }
-        
-        /* Вывод результатов */
         #output { 
             white-space: pre-wrap; 
             background: #263238; 
@@ -110,8 +92,6 @@
             margin-top: 25px;
             border-left: 4px solid #4CAF50;
         }
-        
-        /* Индикатор загрузки */
         .loader { 
             display: none; 
             color: #546E7A; 
@@ -119,7 +99,6 @@
             margin: 20px 0;
             font-size: 14px;
         }
-        
         .progress-bar { 
             width: 100%; 
             height: 6px; 
@@ -128,15 +107,12 @@
             margin: 12px 0; 
             overflow: hidden;
         }
-        
         .progress-fill { 
             height: 100%; 
             background: linear-gradient(90deg, #1976D2, #42A5F5); 
             width: 0%; 
             transition: width 0.5s;
         }
-        
-        /* Ошибки */
         .error { 
             color: #C62828; 
             background: #FFEBEE; 
@@ -146,8 +122,6 @@
             display: none;
             border-left: 4px solid #C62828;
         }
-        
-        /* Подвал */
         .footer {
             text-align: center;
             margin-top: 30px;
@@ -156,8 +130,6 @@
             font-size: 12px;
             color: #78909C;
         }
-        
-        /* Адаптивность */
         @media (max-width: 768px) {
             body { padding: 15px; }
             .container { padding: 25px; }
@@ -169,7 +141,7 @@
 <body>
     <div class="container">
         <h1>Методы Статистического Обучения</h1>
-        <p class="subtitle"> <b>Решение Марковского Процесса Принятия Решений (МППР)<br> методом обратной индукции для ациклических графов</b></p>
+        <p class="subtitle"><b>Решение Марковского Процесса Принятия Решений (МППР)<br>методом обратной индукции для ациклических графов</b></p>
         
         <div class="info">
             <strong>Инструкция по выполнению лабораторной работы:</strong><br><br>
@@ -194,12 +166,9 @@
         <div class="error" id="errorBox"></div>
         <div id="output"></div>
         
-        <div class="footer">
-             2026
-        </div>
+        <div class="footer">2026</div>
     </div>
 
-    <!-- Код Python -->
     <script type="py" id="py-code">
 import json
 
@@ -313,156 +282,168 @@ class MDPSolver:
             q_val += p * (r + self.gamma * v_next)
         return q_val
 
+    def _format_q_expression(self, s, a, V):
+        """Форматирует выражение q(s,a) в требуемом виде."""
+        node = self.nodes.get((s, a))
+        if not node:
+            return None, float('-inf')
+        terms = []
+        q_val = 0.0
+        for p, r, j in zip(node['P'], node['R'], node['to next S']):
+            v_next = V[j-1] if 1 <= j <= self.N else 0.0
+            r_display = int(r) if r == int(r) else r
+            v_display = f"{v_next:.2f}"
+            terms.append(f"{p}·({r_display}+{self.gamma}·{v_display})")
+            q_val += p * (r + self.gamma * v_next)
+        expr = '+'.join(terms)
+        return expr, q_val
+
     def solve_backward_induction(self):
         V = [0.0] * self.N
-        policy = [''] * self.N
+        policy = [None] * self.N
         lines = []
+        
+        # Шаг 0: терминальные состояния
         lines.append("  ")
         lines.append("Шаг 0. Терминальные состояния")
         for s in self.terminal_states:
             lines.append(f"  v({self.get_state_name(s)}) = 0")
         lines.append("  ")
-        non_terminal_states = [s for s in range(1, self.N + 1) if not self.is_terminal(s)]
-        for step, s in enumerate(reversed(non_terminal_states), 1):
+        
+        # Обратная индукция по нетерминальным состояниям в обратном порядке
+        non_terminal = [s for s in range(1, self.N + 1) if not self.is_terminal(s)]
+        
+        for step, s in enumerate(reversed(non_terminal), 1):
             actions = self.get_available_actions(s)
             if not actions:
                 continue
+                
+            state_name = self.get_state_name(s)
             q_values = {}
+            
+            lines.append(f"Шаг {step}. Состояние {state_name}")
+            
             for a in actions:
-                q_val = self.Q(s, a, V)
+                expr, q_val = self._format_q_expression(s, a, V)
+                action_name = self.get_action_name(a)
                 q_values[a] = q_val
-            if not q_values:
-                continue
+                lines.append(f"  q({state_name}, {action_name}) = {expr} = {q_val:.4f}")
+            
+            # Выбираем лучшее действие
             best_action = max(q_values, key=q_values.get)
             V[s-1] = q_values[best_action]
             policy[s-1] = best_action
-            state_name = self.get_state_name(s)
-            lines.append(f"Шаг {step}. Состояние {state_name}")
-            for a, q_val in q_values.items():
-                action_name = self.get_action_name(a)
-                node = self.nodes.get((s, a))
-                if node:
-                    terms = []
-                    for p, r, j in zip(node['P'], node['R'], node['to next S']):
-                        v_next = V[j-1] if 1 <= j <= self.N else 0.0
-                        terms.append(f"{p}·({r}+{self.gamma}·{v_next:.2f})")
-                    expr = '+'.join(terms)
-                    lines.append(f"  q({state_name}, {action_name}) = {expr} = {q_val:.4f}")
-            lines.append(f"  v({state_name}) = max = {V[s-1]:.4f}, π*({state_name}) = {self.get_action_name(best_action)}")
+            
+            lines.append(f"  v({state_name}) = max = {V[s-1]:.4f}")
+            lines.append(f"  π*({state_name}) = {self.get_action_name(best_action)}")
             lines.append("  ")
+            
         return V, policy, lines
 
-    def get_optimal_policy_path(self, V, policy):
-        path_parts = []
-        current_s = 1
-        visited = set()
-        while not self.is_terminal(current_s) and current_s not in visited:
-            visited.add(current_s)
-            path_parts.append(f"{self.get_state_name(current_s)}")
-            action_num = policy[current_s-1]
-            if not action_num:
-                break
-            action_name = self.get_action_name(action_num)
-            path_parts.append(action_name)
-            node = self.nodes.get((current_s, action_num))
-            if node:
-                max_idx = node['P'].index(max(node['P']))
-                current_s = node['to next S'][max_idx]
-            else:
-                break
-        if not self.is_terminal(current_s) and current_s not in visited:
-            path_parts.append(self.get_state_name(current_s))
-        else:
-            path_parts.append(self.get_state_name(current_s))
-        result_parts = []
-        i = 0
-        while i < len(path_parts) - 1:
-            if i + 1 < len(path_parts):
-                result_parts.append(f"{path_parts[i]} + {path_parts[i+1]}")
-                i += 2
-            else:
-                result_parts.append(path_parts[i])
-                i += 1
-        return ' → '.join(result_parts) + f" = {path_parts[-1]}"
-
-    def generate_report(self, V, policy, calc_lines):
+    def generate_report(self, V, policy, calc_lines, filename="data.json"):
         lines = []
+        
+        # === ИСХОДНЫЕ ДАННЫЕ ===
         lines.append("=" * 80)
         lines.append("ИСХОДНЫЕ ДАННЫЕ")
         lines.append("=" * 80)
-        lines.append(f"Описание задачи: {self.annotation}")
-        lines.append(f"Коэффициент дисконтирования: γ = {self.gamma}")
-        lines.append(f"Горизонт планирования: K = {self.K}")
-        lines.append(f"Количество состояний: N = {self.N}")
-        lines.append(f"Количество действий: M = {self.M}")
-        lines.append("  ")
-        states_str = ",  ".join([f"{i+1} - {self.states[i]}" for i in range(self.N)])
-        lines.append(f"Состояния: {states_str}")
-        terminal_names = [f"{s} - {self.get_state_name(s)}" for s in self.terminal_states]
-        lines.append(f"Терминальные состояния: {', '.join(terminal_names)}")
-        lines.append("  ")
-        actions_str = ",  ".join([f"{i+1} - {self.actions[i].capitalize()}" for i in range(self.M)])
-        lines.append(f"Действия: {actions_str}")
-        lines.append("  ")
+        lines.append(f"Источник: {filename}")
+        lines.append("")
+        lines.append("Параметры:")
+        lines.append(f"  Коэффициент дисконтирования: γ = {int(self.gamma) if self.gamma == int(self.gamma) else self.gamma}")
+        lines.append(f"  Горизонт планирования: K = {self.K}")
+        lines.append(f"  Количество состояний: N = {self.N}")
+        lines.append(f"  Количество действий: M = {self.M}")
+        lines.append(" ")
+        
+        # Состояния
+        states_parts = [f"{i+1} - {self.states[i]}" for i in range(self.N)]
+        lines.append(f"Состояния: {', '.join(states_parts)}")
+        
+        # Терминальные состояния
+        terminal_parts = [f"{s} - {self.get_state_name(s)}" for s in self.terminal_states]
+        lines.append(f"Терминальные состояния: {', '.join(terminal_parts)}")
+        lines.append(" ")
+        
+        # Действия
+        actions_parts = [f"{i+1} - {self.actions[i].capitalize()}" for i in range(self.M)]
+        lines.append(f"Действия: {', '.join(actions_parts)}")
+        lines.append(" ")
+        
+        # Матрица доступности действий (с именами действий)
         lines.append("Матрица доступности действий:")
         for i in range(self.N):
             state_name = self.get_state_name(i+1)
-            available = [str(j+1) for j, val in enumerate(self.D[i]) if val == 1]
-            actions_str_row = ', '.join(available) if available else '—'
-            lines.append(f"  {state_name}: [{actions_str_row}]")
-        lines.append("  ")
+            available_names = [self.get_action_name(j+1) for j, val in enumerate(self.D[i]) if val == 1]
+            actions_str = ', '.join(available_names) if available_names else '—'
+            lines.append(f"  {state_name}: [{actions_str}]")
+        lines.append(" ")
+        
+        # Узлы переходов
         lines.append("Узлы переходов:")
-        for node in self.nodes.values():
+        for idx, node in enumerate(self.data.get('chance_nodes', []), 1):
             from_s = node['from S']
             action = node['action']
             state_name = self.get_state_name(from_s)
             action_name = self.get_action_name(action)
-            next_states_names = [self.get_state_name(s) for s in node['to next S']]
-            lines.append(f"  {state_name} + {action_name} → {{{', '.join(next_states_names)}}}")
+            next_names = [self.get_state_name(s) for s in node['to next S']]
+            
+            # Добавляем номер узла с выравниванием
+            lines.append(f"  l={idx}: {state_name} + {action_name} → {{{', '.join(next_names)}}}")
+            
             for k in range(len(node['P'])):
                 p = node['P'][k]
                 r = node['R'][k]
                 next_s = node['to next S'][k]
                 r_display = int(r) if r == int(r) else r
                 lines.append(f"      {p} | {r_display} → {self.get_state_name(next_s)}")
-        lines.append("  ")
+        lines.append(" ")
+        
+        # === РЕШЕНИЕ ===
         lines.append("=" * 80)
         lines.append("РЕШЕНИЕ МЕТОДОМ ОБРАТНОЙ ИНДУКЦИИ")
         lines.append("=" * 80)
         lines.extend(calc_lines)
+        
+        # === ОПТИМАЛЬНАЯ ПОЛИТИКА ===
         lines.append("=" * 80)
         lines.append("ОПТИМАЛЬНАЯ ПОЛИТИКА")
         lines.append("=" * 80)
         lines.append("-" * 60)
         lines.append(f"{'Состояние':<20} {'Действие':<20} {'Ценность':<15}")
         lines.append("-" * 60)
+        
         for i in range(self.N):
             s = i + 1
             state_name = self.get_state_name(s)
             action_name = self.get_action_name(policy[i]) if policy[i] else "—"
             value = V[i]
             lines.append(f"{state_name:<20} {action_name:<20} {value:<15.4f}")
+        
         lines.append("-" * 60)
-        lines.append(f"Значение ожидаемой ценности: V*(s₁) = {V[0]:.4f}")
         lines.append("=" * 80)
+        lines.append(f"Значение ожидаемой ценности: V* = {V[0]:.4f}")
+        lines.append("=" * 80)
+        
         return '\n'.join(lines)
 
 last_report = ""
-last_filename = "result.txt"
 
-def run_calculation(file_content):
-    global last_report, last_filename
+def run_calculation(file_content, filename="data.json"):
+    global last_report
     try:
         raw_data = json.loads(file_content)
         data = clean_data_keys(raw_data)
         is_valid, errors = validate_data(data)
         if not is_valid:
             return "❌ ОШИБКА В ДАННЫХ:\n" + "\n".join([f"  - {e}" for e in errors])
+        
         solver = MDPSolver(data)
         V, policy, calc_lines = solver.solve_backward_induction()
-        report = solver.generate_report(V, policy, calc_lines)
+        report = solver.generate_report(V, policy, calc_lines,  filename)
         last_report = report
         return report
+        
     except Exception as e:
         import traceback
         return f"❌ КРИТИЧЕСКАЯ ОШИБКА:\n{str(e)}\n\n{traceback.format_exc()}"
@@ -482,8 +463,6 @@ def get_last_report():
 
         async function main() {
             const loader = document.getElementById('loader');
-            const progress = document.getElementById('progress');
-            
             try {
                 loader.style.display = 'block';
                 updateProgress(10);
@@ -494,7 +473,6 @@ def get_last_report():
                 
                 updateProgress(40);
                 await pyodide.loadPackage("micropip");
-                
                 updateProgress(70);
                 await pyodide.runPythonAsync(document.getElementById("py-code").innerHTML);
                 
@@ -502,10 +480,7 @@ def get_last_report():
                 pyodideReady = true;
                 document.getElementById('calcBtn').disabled = false;
                 
-                setTimeout(() => {
-                    loader.style.display = 'none';
-                }, 500);
-                
+                setTimeout(() => { loader.style.display = 'none'; }, 500);
                 console.log("✅ Python готов к работе");
             } catch (err) {
                 loader.innerHTML = "❌ Ошибка загрузки Python. <a href='' onclick='location.reload()'>Обновите страницу</a>.";
@@ -536,8 +511,8 @@ def get_last_report():
             try {
                 const file = fileInput.files[0];
                 const text = await file.text();
-                
-                let result = await pyodide.globals.get("run_calculation")(text);
+                let filename = file.name;  // получаем имя файла
+                let result = await pyodide.globals.get("run_calculation")(text, filename);
                 
                 const outputDiv = document.getElementById('output');
                 outputDiv.style.display = 'block';
@@ -547,7 +522,6 @@ def get_last_report():
                     resultBlob = new Blob([result], {type: 'text/plain'});
                     document.getElementById('downloadBtn').style.display = 'inline-block';
                 }
-                
             } catch (err) {
                 document.getElementById('errorBox').style.display = 'block';
                 document.getElementById('errorBox').innerText = "❌ Ошибка: " + err.message;

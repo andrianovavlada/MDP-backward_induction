@@ -334,7 +334,7 @@ class MDPSolver:
             V[s-1] = q_values[best_action]
             policy[s-1] = best_action
             
-            lines.append(f"  v({state_name}) = max = {V[s-1]:.4f}")
+            lines.append(f"  v*({state_name}) = max = {V[s-1]:.4f}")
             lines.append(f"  π*({state_name}) = {self.get_action_name(best_action)}")
             lines.append("  ")
             

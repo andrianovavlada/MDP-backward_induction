@@ -194,48 +194,199 @@ def clean_data_keys(data):
     return cleaned
 
 def validate_data(data):
-    """Проверка корректности данных МДП."""
+    """
+    Проверка корректности данных МДП.
+    Возвращает (is_valid: bool, errors: List[str]).
+    """
     errors = []
-    try:
-        N = data.get('N')
-        M = data.get('M')
-        if N is None or M is None:
-            return False, ["Отсутствуют обязательные поля N или M."]
-        if N <= 0 or M <= 0:
-            errors.append("N и M должны быть положительными числами.")
-        if len(data.get('states', [])) != N:
-            errors.append(f"Количество состояний ({len(data.get('states', []))}) не совпадает с N ({N}).")
-        if len(data.get('actions', [])) != M:
-            errors.append(f"Количество действий ({len(data.get('actions', []))}) не совпадает с M ({M}).")
-        if len(data.get('D', [])) != N:
-            errors.append(f"Количество строк в матрице D ({len(data.get('D', []))}) не совпадает с N.")
-        for i, row in enumerate(data.get('D', [])):
+    
+    # === 0. Проверка типа корневых данных ===
+    if not isinstance(data, dict):
+        return False, ["Корневой элемент должен быть объектом JSON (словарём)."]
+    
+    # === 1. Обязательные числовые параметры ===
+    N = data.get('N')
+    M = data.get('M')
+    
+    if N is None:
+        errors.append("❌ Отсутствует обязательное поле 'N' (количество состояний).")
+    elif not isinstance(N, int) or N <= 0:
+        errors.append(f"❌ Поле 'N' должно быть положительным целым числом, получено: {repr(N)}.")
+    
+    if M is None:
+        errors.append("❌ Отсутствует обязательное поле 'M' (количество действий).")
+    elif not isinstance(M, int) or M <= 0:
+        errors.append(f"❌ Поле 'M' должно быть положительным целым числом, получено: {repr(M)}.")
+    
+    # Если N или M некорректны — дальнейшие проверки размеров бессмысленны
+    if errors:
+        return False, errors
+    
+    # === 2. Проверка списка состояний ===
+    states = data.get('states')
+    if states is None:
+        errors.append("❌ Отсутствует обязательное поле 'states' (список наименований состояний).")
+    elif not isinstance(states, list):
+        errors.append(f"❌ Поле 'states' должно быть массивом, получено: {type(states).__name__}.")
+    elif len(states) != N:
+        actual_names = ', '.join(repr(s) for s in states[:5])
+        if len(states) > 5:
+            actual_names += ', ...'
+        errors.append(
+            f"❌ Количество состояний в списке 'states' ({len(states)}) не совпадает с заданным N={N}.\n"
+            f"   Фактические наименования: [{actual_names}]"
+        )
+    
+    # === 3. Проверка списка действий ===
+    actions = data.get('actions')
+    if actions is None:
+        errors.append("❌ Отсутствует обязательное поле 'actions' (список наименований действий).")
+    elif not isinstance(actions, list):
+        errors.append(f"❌ Поле 'actions' должно быть массивом, получено: {type(actions).__name__}.")
+    elif len(actions) != M:
+        actual_names = ', '.join(repr(a) for a in actions[:5])
+        if len(actions) > 5:
+            actual_names += ', ...'
+        errors.append(
+            f"❌ Количество действий в списке 'actions' ({len(actions)}) не совпадает с заданным M={M}.\n"
+            f"   Фактические наименования: [{actual_names}]"
+        )
+    
+    # === 4. Проверка матрицы доступности действий D ===
+    D = data.get('D')
+    if D is None:
+        errors.append("❌ Отсутствует обязательное поле 'D' (матрица доступности действий).")
+    elif not isinstance(D, list):
+        errors.append(f"❌ Поле 'D' должно быть матрицей (массивом массивов), получено: {type(D).__name__}.")
+    elif len(D) != N:
+        errors.append(
+            f"❌ Количество строк в матрице 'D' ({len(D)}) не совпадает с заданным количеством состояний N={N}."
+        )
+    else:
+        for i, row in enumerate(D):
+            state_name = states[i] if (states and isinstance(states, list) and i < len(states)) else f"состояние #{i+1}"
+            
+            if not isinstance(row, list):
+                errors.append(f"❌ Строка #{i+1} матрицы 'D' (для состояния '{state_name}') должна быть массивом.")
+                continue
             if len(row) != M:
-                errors.append(f"Длина строки {i+1} матрицы D не равна M.")
-        nodes_map = {}
-        for node in data.get('chance_nodes', []):
+                action_sample = ', '.join(repr(a) for a in (actions[:3] if actions else []))
+                errors.append(
+                    f"❌ Длина строки #{i+1} матрицы 'D' (для состояния '{state_name}') равна {len(row)}, "
+                    f"но должна совпадать с M={M} (действия: [{action_sample}{'...' if len(actions or []) > 3 else ''}])."
+                )
+            else:
+                for j, val in enumerate(row):
+                    action_name = actions[j] if (actions and isinstance(actions, list) and j < len(actions)) else f"действие #{j+1}"
+                    if val not in (0, 1):
+                        errors.append(
+                            f"❌ Элемент D[{i+1}][{j+1}] (состояние '{state_name}', действие '{action_name}') "
+                            f"должен быть 0 или 1, получено: {repr(val)}."
+                        )
+    
+    # === 5. Проверка узлов случайных переходов (chance_nodes) ===
+    chance_nodes = data.get('chance_nodes')
+    if chance_nodes is None:
+        errors.append("❌ Отсутствует обязательное поле 'chance_nodes' (список узлов переходов).")
+    elif not isinstance(chance_nodes, list):
+        errors.append(f"❌ Поле 'chance_nodes' должно быть массивом, получено: {type(chance_nodes).__name__}.")
+    else:
+        nodes_map = {}  # для проверки дубликатов (state, action)
+        
+        for idx, node in enumerate(chance_nodes):
+            prefix = f"❌ Узел #{idx+1}"
+            
+            if not isinstance(node, dict):
+                errors.append(f"{prefix}: должен быть объектом (словарём), получено: {type(node).__name__}.")
+                continue
+            
             from_s = node.get('from S')
             action = node.get('action')
-            if from_s is None or action is None:
-                errors.append(f"Узел без указания состояния или действия: {node}")
-                continue
-            key = (from_s, action)
-            if key in nodes_map:
-                errors.append(f"Дублирование узла для состояния {key[0]} и действия {key[1]}.")
-            nodes_map[key] = node
+            
+            # 5.1. Проверка полей from S и action
+            if from_s is None:
+                errors.append(f"{prefix}: отсутствует поле 'from S' (исходное состояние).")
+            elif not isinstance(from_s, int) or from_s < 1 or from_s > N:
+                state_context = f" (допустимые: 1..{N})" if isinstance(N, int) else ""
+                errors.append(f"{prefix}: поле 'from S' должно быть целым числом от 1 до N{state_context}, получено: {repr(from_s)}.")
+            
+            if action is None:
+                errors.append(f"{prefix}: отсутствует поле 'action' (применяемое действие).")
+            elif not isinstance(action, int) or action < 1 or action > M:
+                action_context = f" (допустимые: 1..{M})" if isinstance(M, int) else ""
+                errors.append(f"{prefix}: поле 'action' должно быть целым числом от 1 до M{action_context}, получено: {repr(action)}.")
+            
+            # 5.2. Проверка дублирования узлов
+            if isinstance(from_s, int) and isinstance(action, int) and 1 <= from_s <= N and 1 <= action <= M:
+                key = (from_s, action)
+                state_name = states[from_s-1] if (states and isinstance(states, list) and from_s-1 < len(states)) else f"s{from_s}"
+                action_name = actions[action-1] if (actions and isinstance(actions, list) and action-1 < len(actions)) else f"a{action}"
+                
+                if key in nodes_map:
+                    prev_idx = nodes_map[key]
+                    errors.append(
+                        f"{prefix}: дублирование узла для состояния '{state_name}' (#{from_s}) и действия '{action_name}' (#{action}).\n"
+                        f"   Ранее определён в узле #{prev_idx}."
+                    )
+                else:
+                    nodes_map[key] = idx + 1
+            
+            # 5.3. Проверка массивов перехода
+            for field_name, field_key in [('вероятности', 'P'), ('награды', 'R'), ('следующие состояния', 'to next S')]:
+                values = node.get(field_key)
+                if values is None:
+                    errors.append(f"{prefix}: отсутствует поле '{field_key}' ({field_name}).")
+                elif not isinstance(values, list):
+                    errors.append(f"{prefix}: поле '{field_key}' ({field_name}) должно быть массивом, получено: {type(values).__name__}.")
+            
             probs = node.get('P', [])
-            if abs(sum(probs) - 1.0) > 0.001:
-                errors.append(f"Сумма вероятностей для узла ({from_s}, {action}) не равна 1 (={sum(probs)}).")
-            for j in node.get('to next S', []):
-                if j < 1 or j > N:
-                    errors.append(f"Некорректный индекс состояния {j} в узле ({from_s}, {action}).")
-        if errors:
-            return False, errors
-        return True, []
-    except KeyError as e:
-        return False, [f"Отсутствует обязательное поле: {e}"]
-    except Exception as e:
-        return False, [f"Ошибка валидации: {str(e)}"]
+            rewards = node.get('R', [])
+            next_states = node.get('to next S', [])
+            
+            # 5.4. Согласованность длин массивов
+            if all(isinstance(x, list) for x in [probs, rewards, next_states]):
+                lens = {'P': len(probs), 'R': len(rewards), 'to next S': len(next_states)}
+                if not (len(set(lens.values())) <= 1):
+                    errors.append(
+                        f"{prefix}: массивы 'P', 'R' и 'to next S' должны иметь одинаковую длину, "
+                        f"получено: P={lens['P']}, R={lens['R']}, to next S={lens['to next S']}."
+                    )
+                else:
+                    # 5.5. Валидация содержимого массивов
+                    for k in range(len(probs)):
+                        # Вероятности
+                        p = probs[k]
+                        if not isinstance(p, (int, float)):
+                            errors.append(f"{prefix}: вероятность P[{k+1}] должна быть числом, получено: {repr(p)}.")
+                        elif p < 0 or p > 1:
+                            errors.append(f"{prefix}: вероятность P[{k+1}] должна быть в диапазоне [0, 1], получено: {p}.")
+                    
+                    # Сумма вероятностей
+                    if probs and all(isinstance(p, (int, float)) for p in probs):
+                        total = sum(probs)
+                        if abs(total - 1.0) > 0.001:
+                            state_ctx = f"'{states[from_s-1]}'" if (states and isinstance(states, list) and isinstance(from_s, int) and 1 <= from_s <= len(states)) else f"#{from_s}"
+                            action_ctx = f"'{actions[action-1]}'" if (actions and isinstance(actions, list) and isinstance(action, int) and 1 <= action <= len(actions)) else f"#{action}"
+                            errors.append(
+                                f"{prefix}: сумма вероятностей для перехода из состояния {state_ctx} действием {action_ctx} "
+                                f"должна быть ≈1.0, получено: {total:.4f}."
+                            )
+                    
+                    # Награды
+                    for k, r in enumerate(rewards):
+                        if not isinstance(r, (int, float)):
+                            errors.append(f"{prefix}: награда R[{k+1}] должна быть числом, получено: {repr(r)}.")
+                    
+                    # Следующие состояния
+                    for k, j in enumerate(next_states):
+                        if not isinstance(j, int) or j < 1 or j > N:
+                            state_ctx = f"1..{N}" if isinstance(N, int) else "допустимый диапазон"
+                            errors.append(
+                                f"{prefix}: индекс следующего состояния 'to next S'[{k+1}] должен быть целым числом из диапазона [{state_ctx}], "
+                                f"получено: {repr(j)}."
+                            )
+    
+    return (len(errors) == 0), errors
 
 class MDPSolver:
     def __init__(self, data):

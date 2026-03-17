@@ -369,7 +369,7 @@ def validate_data(data):
                             action_ctx = f"'{actions[action-1]}'" if (actions and isinstance(actions, list) and isinstance(action, int) and 1 <= action <= len(actions)) else f"#{action}"
                             errors.append(
                                 f"{prefix}: сумма вероятностей для перехода из состояния {state_ctx} действием {action_ctx} "
-                                f"должна быть ≈1.0, получено: {total:.4f}."
+                                f"должна быть 1.0, получено: {total:.4f}."
                             )
                     
                     # Награды

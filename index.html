@@ -482,10 +482,12 @@ class MDPSolver:
             
             # Выбираем лучшее действие
             best_action = max(q_values, key=q_values.get)
-            V[s-1] = q_values[best_action]
+            best_value = q_values[best_action]
+            V[s-1] = best_value
             policy[s-1] = best_action
             
-            lines.append(f"  v*({state_name}) = max = {V[s-1]:.4f}")
+            q_vals_str = ', '.join(f"{v:.4f}" for v in q_values.values())
+            lines.append(f"  v*({state_name}) = max {{{q_vals_str}}} = {best_value:.4f}")
             lines.append(f"  π*({state_name}) = {self.get_action_name(best_action)}")
             lines.append("  ")
             
